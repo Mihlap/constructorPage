@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  FILE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  pages        Page[]
+  createdVersions PageVersion[] @relation("PageVersionCreatedBy")
+  mediaAssets  MediaAsset[]
+}
+
+model Page {
+  id                 String     @id @default(cuid())
+  ownerId            String
+  owner              User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title              String
+  slug               String?
+  status             PageStatus @default(DRAFT)
+
+  draftVersionId     String?
+  publishedVersionId String?
+
+  versions           PageVersion[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([ownerId])
+  @@unique([ownerId, slug])
+}
+
+model PageVersion {
+  id           String   @id @default(cuid())
+  pageId       String
+  page         Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  versionNo    Int
+  schemaJson   Json
+  createdAt    DateTime @default(now())
+
+  createdById  String
+  createdBy    User     @relation("PageVersionCreatedBy", fields: [createdById], references: [id])
+
+  @@index([pageId, versionNo])
+  @@unique([pageId, versionNo])
+}
+
+model MediaAsset {
+  id         String    @id @default(cuid())
+  ownerId    String
+  owner      User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  type       MediaType
+
+  filename   String
+  mimeType   String
+  sizeBytes  Int
+
+  storageKey String @unique
+
+  createdAt  DateTime @default(now())
+
+  @@index([ownerId, createdAt])
+}
+
